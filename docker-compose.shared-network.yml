@@ -1,0 +1,14 @@
+# Join an existing Docker network, e.g. the one your Jellyfin container is on.
+# Enable by adding to .env:
+#   COMPOSE_FILE=docker-compose.yml:docker-compose.shared-network.yml
+#   JELLYFIN_NETWORK=<name from: docker network ls>
+services:
+  stremio-server:
+    networks: [jellyfin_net]
+  opus-bridge:
+    networks: [jellyfin_net]
+
+networks:
+  jellyfin_net:
+    external: true
+    name: ${JELLYFIN_NETWORK}

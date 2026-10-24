@@ -1,0 +1,105 @@
+:root {
+  --ground: #0a1822;
+  --raise: #10242f;
+  --line: #1d3947;
+  --text: #dbe7ec;
+  --muted: #86a0ae;
+  --ok: #7fe3b4;
+  --warn: #f2b25c;
+  --bad: #ff8a80;
+  --focus: #9fd8ff;
+  --font: "Avenir Next", "Segoe UI", Inter, system-ui, -apple-system, sans-serif;
+  --num: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: light) {
+  :root { --ground: #f2f6f8; --raise: #e5edf1; --line: #c4d4dc; --text: #12303d; --muted: #52707f;
+    --ok: #0d8a57; --warn: #a8660a; --bad: #b3261e; --focus: #0b63b6; }
+}
+* { box-sizing: border-box; }
+html { background: var(--ground); color: var(--text); font: 16px/1.5 var(--font); }
+body { margin: 0; }
+main { max-width: 980px; margin: 0 auto; padding: 28px 20px 80px; }
+h1, h2, h3 { font-weight: 650; line-height: 1.2; margin: 0; }
+h1 { font-size: 1.5rem; letter-spacing: -0.01em; }
+h2 { font-size: 1.15rem; margin-bottom: 4px; }
+p { margin: 0 0 12px; max-width: 62ch; }
+.muted { color: var(--muted); }
+.small { font-size: 0.875rem; }
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 4px; }
+
+header.top { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-bottom: 18px; }
+header.top .brand { display: flex; align-items: baseline; gap: 12px; }
+nav.tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); margin-bottom: 32px; overflow-x: auto; }
+nav.tabs button { background: none; border: 0; color: var(--muted); padding: 10px 14px; font: inherit; cursor: pointer;
+  border-bottom: 2px solid transparent; margin-bottom: -1px; white-space: nowrap; }
+nav.tabs button[aria-selected="true"] { color: var(--text); border-bottom-color: var(--ok); }
+
+section.block { margin-bottom: 44px; }
+section.block > .lede { margin-bottom: 18px; }
+
+/* pipeline strip: the one distinctive element */
+.pipe { display: flex; align-items: stretch; margin: 6px 0 4px; }
+.pipe .node { flex: 1 1 0; min-width: 0; padding: 14px 14px 12px; background: var(--raise); border-radius: 10px; }
+.pipe .link { flex: 0 0 28px; align-self: center; height: 2px; background: var(--line); position: relative; }
+.pipe .link.live { background: var(--ok); }
+.pipe .node h3 { font-size: 0.95rem; display: flex; align-items: center; gap: 8px; }
+.dot { width: 9px; height: 9px; border-radius: 50%; background: var(--muted); flex: none; }
+.dot.ok { background: var(--ok); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ok) 22%, transparent); }
+.dot.bad { background: var(--bad); }
+.dot.off { background: transparent; border: 2px solid var(--muted); }
+.pipe .node p { margin: 6px 0 0; font-size: 0.8125rem; color: var(--muted); overflow-wrap: anywhere; }
+@media (max-width: 720px) {
+  .pipe { flex-direction: column; }
+  .pipe .link { width: 2px; height: 14px; flex-basis: 14px; align-self: center; }
+}
+
+.copy-row { display: flex; gap: 8px; margin-top: 10px; max-width: 640px; }
+.copy-row input { flex: 1; font-family: var(--num); font-size: 0.875rem; }
+
+/* activity */
+.log { list-style: none; margin: 0; padding: 0; }
+.log li { display: grid; grid-template-columns: 64px 1fr; gap: 4px 14px; padding: 12px 0; border-top: 1px solid var(--line); }
+.log .t { color: var(--muted); font-family: var(--num); font-size: 0.8125rem; padding-top: 2px; }
+.log .id { font-family: var(--num); font-size: 0.875rem; }
+.funnel { display: flex; align-items: center; gap: 10px; margin-top: 4px; }
+.funnel .bar { flex: 0 1 220px; width: 220px; min-width: 60px; height: 8px; border-radius: 4px; background: var(--raise); overflow: hidden; }
+.funnel .bar i { display: block; height: 100%; background: var(--ok); }
+.funnel .bar i.none { background: var(--warn); }
+.funnel .n { white-space: nowrap; font-family: var(--num); font-size: 0.8125rem; color: var(--muted); }
+.log .why { font-size: 0.875rem; color: var(--muted); margin-top: 2px; overflow-wrap: anywhere; }
+.log .why b { color: var(--warn); font-weight: 600; }
+.empty { padding: 20px 0; color: var(--muted); border-top: 1px solid var(--line); }
+
+/* forms */
+form { max-width: 640px; }
+.field { display: grid; gap: 4px; margin-bottom: 14px; }
+.field label, .field .lab { font-size: 0.9rem; font-weight: 600; }
+.field .hint { font-size: 0.8125rem; color: var(--muted); }
+.row { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 14px; }
+input[type=text], input[type=password], input[type=number], input[type=url] {
+  width: 100%; background: var(--raise); color: var(--text); border: 1px solid var(--line);
+  border-radius: 8px; padding: 9px 11px; font: inherit; }
+input:focus-visible { outline-offset: 0; border-color: var(--focus); }
+button.btn { background: var(--ok); color: #05261a; border: 0; border-radius: 8px; padding: 9px 16px; font: inherit;
+  font-weight: 650; cursor: pointer; }
+button.btn.quiet { background: transparent; color: var(--text); border: 1px solid var(--line); font-weight: 500; }
+button.btn.danger { background: transparent; color: var(--bad); border: 1px solid var(--line); font-weight: 500; }
+button.btn:disabled { opacity: 0.5; cursor: default; }
+.actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-top: 6px; }
+.msg { font-size: 0.9rem; }
+.msg.ok { color: var(--ok); } .msg.bad { color: var(--bad); }
+.check { display: flex; gap: 10px; align-items: center; margin-bottom: 8px; }
+.check input { width: 18px; height: 18px; accent-color: var(--ok); }
+.reslist { list-style: none; padding: 0; margin: 0 0 4px; max-width: 360px; }
+.reslist li { display: flex; align-items: center; gap: 10px; padding: 6px 0; border-top: 1px solid var(--line); }
+.reslist li:last-child { border-bottom: 1px solid var(--line); }
+.reslist .name { flex: 1; font-family: var(--num); }
+.reslist button:disabled { opacity: 0.35; cursor: default; }
+.reslist button { background: none; border: 1px solid var(--line); color: var(--muted); border-radius: 6px; padding: 2px 8px; cursor: pointer; font: inherit; font-size: 0.8125rem; }
+
+.login { max-width: 360px; margin: 14vh auto 0; }
+.login h1 { margin-bottom: 6px; }
+.login .field { margin-top: 20px; }
+@media (prefers-reduced-motion: no-preference) {
+  .dot.ok { transition: box-shadow .3s; }
+}

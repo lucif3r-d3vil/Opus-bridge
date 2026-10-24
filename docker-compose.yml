@@ -1,0 +1,35 @@
+# Opus Bridge: Jellyfin (Gelato) -> TMDB/TVDB catalogs + Torrentio streams, no debrid.
+# Start with:  docker compose up -d     then open http://127.0.0.1:7001
+services:
+  stremio-server:
+    image: stremio/server:latest
+    container_name: stremio-server
+    restart: unless-stopped
+    # No ports are published: only containers on the same Docker network can reach it.
+
+  opus-bridge:
+    build: .
+    image: opus-bridge:local
+    container_name: opus-bridge
+    restart: unless-stopped
+    depends_on:
+      - stremio-server
+    environment:
+      - TZ=${TZ:-UTC}
+      - STREMIO_URL=http://stremio-server:11470
+      # The address Jellyfin's Gelato plugin should use (shown in the dashboard).
+      - ADDON_URL=http://opus-bridge:7000/manifest.json
+      # Optional first-boot values. Everything can also be set later in the dashboard.
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD:-}
+      - TMDB_API_KEY=${TMDB_API_KEY:-}
+      - TVDB_API_KEY=${TVDB_API_KEY:-}
+    volumes:
+      - opus-data:/data
+    expose:
+      - "7000"   # addon: internal only, never publish this
+    ports:
+      # Dashboard. Defaults to this machine only. Set DASHBOARD_BIND to your LAN IP to reach it from other devices.
+      - "${DASHBOARD_BIND:-127.0.0.1}:${DASHBOARD_PORT:-7001}:7001"
+
+volumes:
+  opus-data:

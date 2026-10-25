@@ -3,7 +3,7 @@
 # Opus Bridge
 
 **Search any movie, series or anime in Jellyfin. Press play. It streams.**
-No debrid account. No download queue. No `.strm` files to babysit.
+No debrid account.
 
 [![Build image](https://github.com/lucif3r-d3vil/opus-bridge/actions/workflows/docker.yml/badge.svg)](https://github.com/lucif3r-d3vil/opus-bridge/actions/workflows/docker.yml)
 ![License](https://img.shields.io/badge/license-MIT-green)

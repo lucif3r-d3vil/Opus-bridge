@@ -8,6 +8,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 import catalog
 import config
+import subtitles
 from util import ApiError, http_json, http_request, log
 
 VIDEO_EXT = (".mkv", ".mp4", ".avi", ".m4v", ".mov", ".webm", ".ts")
@@ -15,6 +16,7 @@ activity = collections.deque(maxlen=200)
 
 _warmed = {}
 _warm_slots = threading.Semaphore(3)
+_sub_pool = ThreadPoolExecutor(max_workers=4, thread_name_prefix="subs")
 
 
 def _res_of(name):
@@ -72,7 +74,8 @@ def build(kind, raw_id):
     cfg = config.get()
     flt = cfg["filters"]
     entry = {"t": time.strftime("%H:%M:%S"), "id": raw_id, "kind": kind, "raw": 0, "kept": 0,
-             "dropped": {}, "note": "", "pick": ""}
+             "dropped": {}, "note": "", "pick": "", "subs": None}
+    sub_future = None
     activity.appendleft(entry)
     try:
         idkind, ident, season, episode = catalog.split_id(raw_id)
@@ -89,6 +92,9 @@ def build(kind, raw_id):
                 entry["note"] = "series stream request without season/episode"
                 return []
             sid = f"{imdb}:{season}:{episode}"
+        if cfg["subtitles"]["enabled"]:
+            # Looked up while Torrentio is being asked, so subtitles add no waiting time.
+            sub_future = _sub_pool.submit(subtitles.for_sid, kind, sid)
         base = cfg["torrentio_url"].rstrip("/")
         data = http_json(f"{base}/stream/{kind}/{sid}.json", timeout=25)
     except ApiError as e:
@@ -155,14 +161,25 @@ def build(kind, raw_id):
         drop["no fileIdx"] += len(pending)
 
     good = good[: int(flt["max_streams"])]
+    subs = []
+    if sub_future is not None:
+        try:
+            subs = sub_future.result(timeout=subtitles.TIMEOUT + 2)
+        except Exception as e:  # subtitles must never break playback
+            log("subtitles skipped:", type(e).__name__)
     out = []
     for c in good:
-        out.append({
+        s = {
             "name": "Opus\n" + c["res"],
             "title": c["title"],
             "url": f"{cfg['stremio_url'].rstrip('/')}/{c['hash']}/{c['idx']}",
             "behaviorHints": {"notWebReady": False},
-        })
+        }
+        if subs:
+            s["subtitles"] = subs
+        out.append(s)
+    if sub_future is not None:
+        entry["subs"] = len(subs)
     entry["kept"] = len(out)
     entry["dropped"] = dict(drop)
     if out:

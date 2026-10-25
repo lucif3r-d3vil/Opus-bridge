@@ -3,6 +3,7 @@ import re
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from urllib.parse import parse_qs, unquote
 
+import config
 from providers import Tmdb, Tvdb
 from util import ApiError, log
 
@@ -38,16 +39,19 @@ def manifest(version="1.0.0"):
             "extra": [{"name": "search", "isRequired": True}],
         })
     types = ["movie", "series"]
+    resources = [
+        {"name": "catalog", "types": types},
+        {"name": "meta", "types": types, "idPrefixes": ["tmdb:", "tt"]},
+        {"name": "stream", "types": types, "idPrefixes": ["tmdb:", "tt"]},
+    ]
+    if (config.get().get("subtitles") or {}).get("enabled"):
+        resources.append({"name": "subtitles", "types": types, "idPrefixes": ["tmdb:", "tt"]})
     return {
         "id": "xyz.opusgrid.opus-bridge",
         "version": version,
         "name": "Opus Bridge",
         "description": "TMDB/TVDB catalogs for movies, series and anime; streams from Torrentio via the local Stremio server.",
-        "resources": [
-            {"name": "catalog", "types": types},
-            {"name": "meta", "types": types, "idPrefixes": ["tmdb:", "tt"]},
-            {"name": "stream", "types": types, "idPrefixes": ["tmdb:", "tt"]},
-        ],
+        "resources": resources,
         "types": types,
         "idPrefixes": ["tmdb:", "tt"],
         "catalogs": cats,

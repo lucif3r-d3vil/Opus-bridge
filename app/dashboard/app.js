@@ -132,6 +132,8 @@ async function activity() {
           el("span", { class: "bar" }, el("i", { class: r.kept ? "" : "none", style: `width:${pct}%` })),
           el("span", { class: "n" }, `${r.kept} kept of ${r.raw}`)),
         r.pick ? el("div", { class: "why" }, "Top pick: " + r.pick) : null,
+        r.kept && r.subs !== null && r.subs !== undefined
+          ? el("div", { class: "why" }, r.subs ? `Subtitles offered: ${r.subs}` : "No subtitles found") : null,
         r.note ? el("div", { class: "why" }, el("b", {}, r.note)) : null,
         dropped ? el("div", { class: "why" }, "Dropped: " + dropped) : null));
   }));
@@ -145,7 +147,7 @@ function field(label, input, hint) {
 
 async function settingsTab(body) {
   const cfg = await api("/api/config");
-  const f = cfg.filters, w = cfg.warmup;
+  const f = cfg.filters, w = cfg.warmup, sb = cfg.subtitles;
 
   // keys ---------------------------------------------------------
   const tmdb = el("input", { type: "password", autocomplete: "off", placeholder: cfg.tmdb_key.set ? "Saved " + cfg.tmdb_key.hint + ". Type to replace." : "API key or read access token" });
@@ -180,6 +182,10 @@ async function settingsTab(body) {
     fix: el("input", { type: "checkbox", checked: f.resolve_missing_fileidx }),
     warmOn: el("input", { type: "checkbox", checked: w.enabled }), warmTop: num(w.top, { min: 0, max: 5 }),
     tor: el("input", { type: "url", value: cfg.torrentio_url }), str: el("input", { type: "url", value: cfg.stremio_url }),
+    subOn: el("input", { type: "checkbox", checked: sb.enabled }),
+    subLang: el("input", { type: "text", value: sb.languages.join(", "), placeholder: "eng, spa" }),
+    subPer: num(sb.per_language, { min: 1, max: 5 }),
+    subUrl: el("input", { type: "url", value: sb.source_url }),
   };
   // resolution list: order = preference, unchecked = excluded
   let order = [...f.resolutions, ...cfg.resolution_options.filter((r) => !f.resolutions.includes(r))];
@@ -202,8 +208,10 @@ async function settingsTab(body) {
           resolutions: order.filter((r) => enabled.has(r)), exclude_keywords: inp.kw.value,
           resolve_missing_fileidx: inp.fix.checked },
         warmup: { enabled: inp.warmOn.checked, top: inp.warmTop.value },
+        subtitles: { enabled: inp.subOn.checked, languages: inp.subLang.value, per_language: inp.subPer.value,
+          source_url: inp.subUrl.value },
         torrentio_url: inp.tor.value, stremio_url: inp.str.value });
-      setMsg.className = "msg ok"; setMsg.textContent = "Saved. Applies to the next request.";
+      setMsg.className = "msg ok"; setMsg.textContent = "Saved. Applies to the next request. In Gelato, press Save on the addon again so it re-reads the manifest.";
     } catch (x) { setMsg.className = "msg bad"; setMsg.textContent = x.message; }
   } },
     el("div", { class: "field" }, el("span", { class: "lab" }, "Qualities"),
@@ -217,6 +225,13 @@ async function settingsTab(body) {
       el("span", { class: "hint" }, "When a title is opened, start fetching the best torrent so it plays sooner. Joins swarms for titles you may never watch.")),
     el("label", { class: "check" }, inp.warmOn, "Warm up the best streams"),
     el("div", { class: "row" }, field("How many to warm", inp.warmTop)),
+    el("div", { class: "field", style: "margin-top:22px" }, el("span", { class: "lab" }, "Subtitles"),
+      el("span", { class: "hint" }, "Fetched from a Stremio subtitle addon (OpenSubtitles by default) and attached to every stream. That addon learns the IMDb id of what you play.")),
+    el("label", { class: "check" }, inp.subOn, "Offer subtitles"),
+    el("div", { class: "row" },
+      field("Languages", inp.subLang, "Codes such as eng, spa, fre, ger, hin. Listed first = preferred."),
+      field("Per language", inp.subPer, "How many to offer for each language (1 to 5).")),
+    field("Subtitle addon URL", inp.subUrl, "Any Stremio subtitle addon. Leave as is unless you run your own."),
     el("div", { class: "field", style: "margin-top:22px" }, el("span", { class: "lab" }, "Services")),
     field("Torrentio URL", inp.tor, "Add Torrentio options to the path if you use them, for example https://torrentio.strem.fun/providers=yts,eztv"),
     field("Stremio server URL", inp.str, "Where the bridge reaches stremio-server inside Docker."),

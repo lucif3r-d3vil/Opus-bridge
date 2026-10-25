@@ -38,6 +38,7 @@ You get a small web dashboard to paste your keys, tune seeders / size / quality,
 - **Search that just works.** TMDB search for movies, series and anime, plus TVDB for titles TMDB misses.
 - **Browse rows in Jellyfin.** Trending, popular, top rated and new releases, airing series, anime series and anime movies.
 - **Your rules, not the tracker's.** Minimum seeders, size limits, allowed qualities in your order, blocked keywords like CAM.
+- **Subtitles.** Pulled from the OpenSubtitles Stremio addon in the languages you pick and attached to every stream.
 - **Faster starts.** A warm-up fetches the best torrent when you open a title, so playback begins sooner.
 - **A dashboard that explains itself.** Health of every hop, and a log such as *"Torrentio returned 41, your filters kept 3"*.
 - **Small and safe.** Pure Python standard library, one container, password-protected dashboard, keys never leave your server.
@@ -218,6 +219,7 @@ volumes:
 | Streams offered | How many options appear per title | 10 |
 | Blocked keywords | Skips CAM, telesync, screeners and the like | `cam,hdcam,telesync,hdts,screener,workprint,telecine` |
 | Warm-up | Pre-fetches the top torrent when a title opens | on |
+| Subtitles | On or off, languages in order of preference (`eng, spa`), how many per language, and the subtitle addon URL | on, `eng`, 2 per language |
 | Service URLs | Torrentio and stremio-server addresses | public Torrentio, `stremio-server:11470` |
 
 ## Reverse proxy, LAN only (Traefik example)
@@ -257,6 +259,7 @@ The bridge then reaches it at `http://gluetun:11470`, so change **Stremio server
 |---|---|
 | Gelato says **"The addon didn't answer"** | Jellyfin can't reach the bridge. Both must share a Docker network: `docker exec jellyfin curl -s http://opus-bridge:7000/manifest.json` should print JSON. Use `http://opus-bridge:7000/manifest.json`, one address only. |
 | Browse rows or search are **empty** | The TMDB key isn't saved. Settings, then **Test and save**. |
+| **No subtitles** | Open **Recent stream requests**: it says how many were offered. Check the language codes in Settings (`eng`, `spa`, `fre`, `hin`...). After changing them, press **Save** on Gelato's addon page so it re-reads the manifest (Gelato caches it for up to 12 hours). Titles with no subtitle on OpenSubtitles will simply have none. |
 | Plays but **takes a while** | Normal for the first start of a torrent (10 to 30 s). Keep warm-up on. |
 | **"No streams"** for a title | Open **Recent stream requests**: it shows how many torrents Torrentio returned and which filter dropped them. Lower the minimum seeders or allow more qualities. |
 | Pipeline shows **Torrentio unreachable** | Some ISPs block the public instance. Put another Torrentio-compatible URL in Settings, or use a VPN. |
@@ -274,6 +277,7 @@ The bridge then reaches it at `http://gluetun:11470`, so change **Stremio server
 
 - Anime uses TMDB's season and episode numbering mapped to IMDb ids. Long-running shows that release by absolute number (episode 1050, say) can miss. Kitsu and MAL ids are not supported.
 - TVDB is used for search only. Episode data comes from TMDB.
+- Subtitles are only as good as OpenSubtitles has for that release, and they are matched to the title, not to the exact torrent, so timing can be off on some releases. The subtitle addon learns the IMDb id of what you play. Turn subtitles off in Settings if you don't want that.
 - Quality depends on what is seeded. Rare or very new titles may have nothing healthy.
 - Gelato creates placeholder items in Jellyfin as titles are discovered. They are not real files and take a little database space.
 

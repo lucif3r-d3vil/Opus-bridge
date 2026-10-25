@@ -17,6 +17,7 @@ from urllib.parse import unquote
 import catalog
 import config
 import streams
+import subtitles
 from providers import Tmdb, Tvdb, cache
 from util import ApiError, http_request, log
 
@@ -73,6 +74,11 @@ class Addon(Base):
             m = re.fullmatch(r"/stream/(movie|series)/([^/]+)\.json", p)
             if m:
                 return self._send(200, {"streams": streams.build(m.group(1), unquote(m.group(2)))},
+                                  extra={"Cache-Control": "max-age=300"})
+            # /subtitles/<type>/<id>.json, optionally /subtitles/<type>/<id>/<extra>.json (filename=..., videoHash=...)
+            m = re.fullmatch(r"/subtitles/(movie|series)/([^/]+?)(?:/[^/]+)?\.json", p)
+            if m:
+                return self._send(200, {"subtitles": subtitles.for_request(m.group(1), unquote(m.group(2)))},
                                   extra={"Cache-Control": "max-age=300"})
         except ApiError as e:
             log("addon error:", self.path.split("?")[0], e)
@@ -166,6 +172,32 @@ def _clean_filters(f, cur):
     return out
 
 
+def _clean_subtitles(s, cur):
+    if not isinstance(s, dict):
+        raise ValueError("subtitles must be an object")
+    out = dict(cur)
+    if "enabled" in s:
+        out["enabled"] = bool(s["enabled"])
+    if "languages" in s:
+        out["languages"] = subtitles.clean_languages(s["languages"])
+    if "per_language" in s:
+        try:
+            n = int(s["per_language"])
+        except (TypeError, ValueError):
+            raise ValueError("per_language must be a number")
+        if not 1 <= n <= 5:
+            raise ValueError("per_language must be between 1 and 5")
+        out["per_language"] = n
+    if "source_url" in s:
+        v = str(s["source_url"]).strip().rstrip("/")
+        if not re.fullmatch(r"https?://[^\s]+", v):
+            raise ValueError("source_url must be an http(s) URL")
+        out["source_url"] = v
+    if out["enabled"] and not out["languages"]:
+        raise ValueError("add at least one language, or turn subtitles off")
+    return out
+
+
 class Dashboard(Base):
     def _send(self, code, body, ctype="application/json", extra=None):
         h = dict(SEC_HEADERS)
@@ -255,6 +287,8 @@ class Dashboard(Base):
                         "top": max(0, min(5, int(w.get("top", cur["top"])))),
                         "bytes": max(65536, min(8_000_000, int(w.get("bytes", cur["bytes"])))),
                     }
+                if "subtitles" in body:
+                    patch["subtitles"] = _clean_subtitles(body["subtitles"], cfg["subtitles"])
                 for k in ("torrentio_url", "stremio_url"):
                     if k in body:
                         v = str(body[k]).strip().rstrip("/")
@@ -265,6 +299,7 @@ class Dashboard(Base):
                 return self._send(400, {"error": str(e)})
             config.update(patch)
             cache.clear()
+            subtitles.clear_cache()
             _status_cache["v"] = None
             return self._send(200, {"ok": True})
 

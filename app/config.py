@@ -33,6 +33,14 @@ DEFAULTS = {
         "resolve_missing_fileidx": True,
     },
     "warmup": {"enabled": True, "top": 1, "bytes": 262144},
+    # Subtitles come from a Stremio subtitle addon. The default is the official OpenSubtitles addon;
+    # it sees the IMDb id of what you play.
+    "subtitles": {
+        "enabled": True,
+        "source_url": "https://opensubtitles-v3.strem.io",
+        "languages": ["eng"],
+        "per_language": 2,
+    },
     "admin": {"salt": "", "hash": ""},
 }
 

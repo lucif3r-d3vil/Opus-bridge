@@ -155,6 +155,23 @@ def fake_urlopen(req, timeout=None):
         assert sid in ("tt0133093", "tt9999999"), sid
         return Resp({"streams": torrentio_streams(parts[2], sid)})
 
+    if u.hostname == "subs-down.test":
+        raise urllib.error.HTTPError(url, 500, "boom", {}, None)
+
+    if u.hostname == "subs.test":
+        parts = p.split("/")  # /subtitles/<kind>/<sid>.json
+        sid = parts[3][:-5]
+        if sid in ("tt0133093", "tt0944947:1:2"):
+            return Resp({"subtitles": [
+                {"id": "x", "url": "javascript:alert(1)", "lang": "eng"},        # unsafe scheme, must be dropped
+                {"id": "1", "url": "https://subs.example/1.srt", "lang": "eng"},
+                {"id": "2", "url": "https://subs.example/2.srt", "lang": "eng"},
+                {"id": "3", "url": "https://subs.example/3.srt", "lang": "eng"},
+                {"id": "4", "url": "https://subs.example/4.srt", "lang": "spa"},
+                {"id": "5", "url": "https://subs.example/5.srt", "lang": "fre"},
+            ]})
+        return Resp({"subtitles": []})
+
     if u.hostname == "stremio-server":
         if p == "/settings":
             return Resp({"options": []})
@@ -178,7 +195,7 @@ import config  # noqa: E402
 import server  # noqa: E402
 
 config.load()
-config.update({"torrentio_url": "http://torrentio.test"})
+config.update({"torrentio_url": "http://torrentio.test", "subtitles": {"source_url": "http://subs.test"}})
 server.serve(server.Addon, ADDON)
 server.serve(server.Dashboard, DASH)
 time.sleep(0.3)
@@ -230,7 +247,7 @@ def check(cond, msg):
 # --- addon manifest ------------------------------------------------------------------
 m = addon("/manifest.json")
 check(all(isinstance(r, dict) for r in m["resources"]), "manifest resources are objects (Gelato needs that)")
-check({"catalog", "meta", "stream"} == {r["name"] for r in m["resources"]}, "manifest offers catalog, meta, stream")
+check({"catalog", "meta", "stream", "subtitles"} == {r["name"] for r in m["resources"]}, "manifest offers catalog, meta, stream, subtitles")
 check(len(m["catalogs"]) == 12 and any(c["extra"] == [{"name": "search", "isRequired": True}] for c in m["catalogs"]),
       "12 catalogs incl. search for movies and series")
 check(any(c["id"] == "tmdb.anime.series" for c in m["catalogs"]), "anime catalogs present")
@@ -291,6 +308,42 @@ check(act["raw"] == 6 and act["kept"] == 3 and act["dropped"].get("seeders") == 
 ep = addon("/stream/series/tmdb:1399:1:2.json")["streams"]
 check(len(ep) == 1 and ep[0]["url"].endswith("/e1" + "0" * 38 + "/1"), "series episode: season-pack file picked by SxxExx (index 1)")
 check(addon("/stream/movie/tt0133093.json")["streams"] != [], "streams also work for raw IMDb ids")
+
+# --- subtitles ------------------------------------------------------------------------------------------------
+st = addon("/stream/movie/tmdb:603.json")["streams"]
+check([x["id"] for x in st[0]["subtitles"]] == ["1", "2"] and all(x["lang"] == "eng" for x in st[0]["subtitles"]),
+      "every stream carries up to 2 English subtitles; unsafe javascript: URL dropped")
+check(all(x["subtitles"] == st[0]["subtitles"] for x in st), "all streams of a title share the same subtitle list")
+check(set(st[0]["subtitles"][0]) == {"id", "url", "lang"}, "subtitle objects follow the Stremio shape (id, url, lang)")
+check([x["id"] for x in addon("/subtitles/movie/tmdb:603.json")["subtitles"]] == ["1", "2"], "subtitles resource works for tmdb: ids")
+check([x["id"] for x in addon("/subtitles/movie/tt0133093.json")["subtitles"]] == ["1", "2"], "subtitles resource works for IMDb ids")
+check([x["id"] for x in addon("/subtitles/movie/tt0133093/filename=Matrix.mkv&videoHash=abc.json")["subtitles"]] == ["1", "2"],
+      "subtitles resource accepts Stremio's extra path (filename / videoHash)")
+check([x["id"] for x in addon("/subtitles/series/tmdb:1399:1:2.json")["subtitles"]] == ["1", "2"], "series subtitles use the season:episode id")
+check(addon("/subtitles/series/tmdb:1399.json")["subtitles"] == [], "series without season/episode -> empty, no crash")
+check(d.req("GET", "/api/activity")[1][0]["subs"] is not None, "activity log records how many subtitles were offered")
+
+check(d.post("/api/settings", {"subtitles": {"languages": "spa, en", "per_language": 1}})[0] == 200, "language settings saved")
+check(config.get()["subtitles"]["languages"] == ["spa", "eng"], "2-letter codes are normalised (en -> eng), order kept")
+check([x["id"] for x in addon("/subtitles/movie/tmdb:603.json")["subtitles"]] == ["4", "1"], "preferred language first, one per language")
+check(d.post("/api/settings", {"subtitles": {"languages": "e!"}})[0] == 400, "bad language code rejected")
+check(d.post("/api/settings", {"subtitles": {"per_language": 9}})[0] == 400, "per_language out of range rejected")
+check(d.post("/api/settings", {"subtitles": {"source_url": "file:///etc/passwd"}})[0] == 400, "non-http subtitle URL rejected")
+check(d.post("/api/settings", {"subtitles": {"languages": ""}})[0] == 400, "enabled with no language rejected")
+
+d.post("/api/settings", {"subtitles": {"source_url": "http://subs-down.test", "languages": "eng", "per_language": 2}})
+down = addon("/stream/movie/tmdb:603.json")["streams"]
+check(len(down) == 3 and "subtitles" not in down[0], "subtitle addon down -> streams still play, just without subtitles")
+check(addon("/subtitles/movie/tmdb:603.json")["subtitles"] == [], "subtitle addon down -> empty list, no crash")
+
+d.post("/api/settings", {"subtitles": {"enabled": False}})
+check("subtitles" not in {r["name"] for r in addon("/manifest.json")["resources"]}, "subtitles off -> not advertised in the manifest")
+off = addon("/stream/movie/tmdb:603.json")["streams"]
+check(len(off) == 3 and "subtitles" not in off[0], "subtitles off -> streams carry none")
+check(d.req("GET", "/api/activity")[1][0]["subs"] is None, "subtitles off -> activity log shows no subtitle lookup")
+
+d.post("/api/settings", {"subtitles": {"enabled": True, "source_url": "http://subs.test", "languages": "eng", "per_language": 2}})
+check([x["id"] for x in addon("/subtitles/movie/tmdb:603.json")["subtitles"]] == ["1", "2"], "subtitles back on and working")
 
 # --- settings --------------------------------------------------------------------------------------------
 check(d.post("/api/settings", {"filters": {"min_seeders": "abc"}})[0] == 400, "invalid setting rejected")

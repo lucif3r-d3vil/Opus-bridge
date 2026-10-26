@@ -78,8 +78,9 @@ class Addon(Base):
             # /subtitles/<type>/<id>.json, optionally /subtitles/<type>/<id>/<extra>.json (filename=..., videoHash=...)
             m = re.fullmatch(r"/subtitles/(movie|series)/([^/]+?)(?:/[^/]+)?\.json", p)
             if m:
-                return self._send(200, {"subtitles": subtitles.for_request(m.group(1), unquote(m.group(2)))},
-                                  extra={"Cache-Control": "max-age=300"})
+                subs = subtitles.for_request(m.group(1), unquote(m.group(2)))
+                return self._send(200, {"subtitles": subs},
+                                  extra={"Cache-Control": "max-age=300" if subs else "no-cache"})
         except ApiError as e:
             log("addon error:", self.path.split("?")[0], e)
             return self._send(200, {"metas": [], "streams": []}, extra={"Cache-Control": "no-cache"})

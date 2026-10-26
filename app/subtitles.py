@@ -9,6 +9,7 @@ from util import ApiError, TTLCache, http_json, log
 
 _cache = TTLCache(max_items=2000)
 CACHE_TTL = 6 * 3600
+EMPTY_TTL = 300  # an empty answer is often the addon having a bad moment; look again soon
 TIMEOUT = 8
 
 # Groups of equivalent codes: 2-letter, ISO 639-2/B, 639-2/T and OpenSubtitles' own variants.
@@ -70,7 +71,15 @@ def _pick(rows, languages, per_language):
             if lang not in grp or not url.startswith(("http://", "https://")) or len(url) > 2000 or url in seen:
                 continue
             seen.add(url)
-            out.append({"id": str(s.get("id") or url)[:200], "url": url, "lang": canonical(lang)})
+            sub = {"id": str(s.get("id") or url)[:200], "url": url, "lang": canonical(lang)}
+            two = group_of(lang)[0]
+            if len(two) == 2:
+                sub["lang_code"] = two  # Gelato reads the 2-letter code straight from here
+            # Gelato ranks subtitles by how well their title matches the release, and shows it in the picker.
+            title = str(s.get("subtitleFileName") or s.get("movieReleaseName") or "").strip()
+            if title:
+                sub["title"] = title[:200]
+            out.append(sub)
             n += 1
             if n >= per_language:
                 break
@@ -95,7 +104,8 @@ def for_sid(kind, sid):
         return []
     rows = data.get("subtitles") if isinstance(data, dict) else None
     subs = _pick(rows if isinstance(rows, list) else [], langs, per)
-    _cache.set(key, subs, CACHE_TTL)
+    _cache.set(key, subs, CACHE_TTL if subs else EMPTY_TTL)
+    log(f"subtitles {kind}/{sid}: {len(rows) if isinstance(rows, list) else 0} offered, {len(subs)} kept for {','.join(langs)}")
     return subs
 
 

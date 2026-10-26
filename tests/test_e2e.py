@@ -164,7 +164,7 @@ def fake_urlopen(req, timeout=None):
         if sid in ("tt0133093", "tt0944947:1:2"):
             return Resp({"subtitles": [
                 {"id": "x", "url": "javascript:alert(1)", "lang": "eng"},        # unsafe scheme, must be dropped
-                {"id": "1", "url": "https://subs.example/1.srt", "lang": "eng"},
+                {"id": "1", "url": "https://subs.example/1.srt", "lang": "eng", "subtitleFileName": "Matrix.1999.1080p.srt"},
                 {"id": "2", "url": "https://subs.example/2.srt", "lang": "eng"},
                 {"id": "3", "url": "https://subs.example/3.srt", "lang": "eng"},
                 {"id": "4", "url": "https://subs.example/4.srt", "lang": "spa"},
@@ -314,7 +314,9 @@ st = addon("/stream/movie/tmdb:603.json")["streams"]
 check([x["id"] for x in st[0]["subtitles"]] == ["1", "2"] and all(x["lang"] == "eng" for x in st[0]["subtitles"]),
       "every stream carries up to 2 English subtitles; unsafe javascript: URL dropped")
 check(all(x["subtitles"] == st[0]["subtitles"] for x in st), "all streams of a title share the same subtitle list")
-check(set(st[0]["subtitles"][0]) == {"id", "url", "lang"}, "subtitle objects follow the Stremio shape (id, url, lang)")
+check(st[0]["subtitles"][0] == {"id": "1", "url": "https://subs.example/1.srt", "lang": "eng", "lang_code": "en",
+                                 "title": "Matrix.1999.1080p.srt"}, "subtitle objects carry id, url, lang, lang_code and title (what Gelato reads)")
+check("title" not in st[0]["subtitles"][1], "no title is invented when the addon gave none")
 check([x["id"] for x in addon("/subtitles/movie/tmdb:603.json")["subtitles"]] == ["1", "2"], "subtitles resource works for tmdb: ids")
 check([x["id"] for x in addon("/subtitles/movie/tt0133093.json")["subtitles"]] == ["1", "2"], "subtitles resource works for IMDb ids")
 check([x["id"] for x in addon("/subtitles/movie/tt0133093/filename=Matrix.mkv&videoHash=abc.json")["subtitles"]] == ["1", "2"],
